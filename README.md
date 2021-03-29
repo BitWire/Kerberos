@@ -2,9 +2,12 @@
 
 
 
-![ROS distro](https://img.shields.io/badge/ROS-melodic-lightgrey?style=flat-square) ![Python version](https://img.shields.io/badge/Python-v2.7-lightgrey?style=flat-square) ![Docker Automated build](https://img.shields.io/docker/automated/johannhaselberger/coros?style=flat-square) ![Docker Build Status](https://img.shields.io/docker/cloud/build/johannhaselberger/coros?style=flat-square) ![Docker Pulls](https://img.shields.io/docker/pulls/johannhaselberger/coros?style=flat-square) ![MicroBadger Size](https://img.shields.io/microbadger/image-size/johannhaselberger/coros?style=flat-square)
+![ROS distro](https://img.shields.io/badge/ROS-melodic-lightgrey?style=flat-square) ![Python version](https://img.shields.io/badge/Python-v2.7-lightgrey?style=flat-square) ![carla python api version](https://img.shields.io/badge/carla%20api%20version-0.9.10.1-lightgrey?style=flat-square) ![Docker Automated build](https://img.shields.io/docker/automated/johannhaselberger/coros?style=flat-square) ![Docker Pulls](https://img.shields.io/docker/pulls/johannhaselberger/coros?style=flat-square) 
 
 Jumpstart ROS developent with no headache! Full browser support. OpenGL support with no need of a physically atachted GPU.
+
+![COROS in web browser](https://raw.githubusercontent.com/gismo07/coros/master/assets/coros_web.png)
+
 
 ## 📦 Included
 
@@ -12,10 +15,13 @@ Jumpstart ROS developent with no headache! Full browser support. OpenGL support 
  - full ros distro (**currently melodic**)
  - rqt and all plugins
  - rviz
+ - carla ros bridge
 
 ### IDE (accessible  through the browser)
  - full python (2.7) environment
  - visual studio code server
+
+ ___
 
 ## 🏃 Start the service
 There are two provided start and stop scripts - one for windows, the other one for unix systems.
@@ -27,13 +33,17 @@ First pull the github project to get these scripts with `git clone https://githu
 
 ### unix
  1. `cd utils`
- 2. `.\start.sh`
+ 2. `sudo chmod +x ./start.sh`
+ 2. `./start.sh`
 
+___
 
  ## 💻 Access the environment
   - to open the IDE, simply open the browser and go to [localhost:80]()
   - The password is currently set to `dev@ros`
   - to see rviz or some other gui stuff, open another browser tab [localhost:6080/vnc.html]() and click connect
+
+___
 
 ## 💾 Data storage
 Per default all perisistent data is located at the host pc (assuming windows for now) under `C:/ros-persistent-data`. Create this folder **before** starting the container.
@@ -49,6 +59,70 @@ If you want to bind a existing folder of the host to the docker container, the `
               volume:
                 nocopy: true  # just keep that
 ```
+___
+## 🚘 Carla integration
+Since version `1.1` COROS comes with a preinstalled version of the [Carla PythonAPI](https://carla.readthedocs.io/en/latest/python_api/) and [ROS bridge](https://github.com/carla-simulator/ros-bridge). Currently we use Carla version `0.9.10.1`.
+
+> The Carla simulation itself is not part of COROS to maintain platform independence
+
+<img src="https://raw.githubusercontent.com/gismo07/coros/master/assets/carla.jpg" />
+
+### Start Carla
+To use the Carla-Ros bridge, make sure that Carla is running and accessible over the network.
+
+#### Linux users with NVIDIA GPU
+1. Get the right carla docker image:
+    ```bash
+    sudo docker pull carlasim/carla:0.9.10.1
+    ```
+2. Make sure the package `xhost` is available on your system. If not:
+    ```
+    sudo apt-get update
+    sudo apt-get install xhost
+    ```
+
+3. start carla while forwarding the x context:
+    ```bash
+    xhost local:root
+    sudo docker run \
+      -e SDL_VIDEODRIVER=x11 \
+      -e DISPLAY=$DISPLAY \
+      -v /tmp/.X11-unix:/tmp/.X11-unix \
+      -p 2000-2002:2000-2002 \
+      -it \
+      --gpus all \
+      carlasim/carla:0.9.10.1 ./CarlaUE4.sh -opengl
+    ```
+
+4. alternatively, carla can also be started without graphical output:
+    ```bash
+    xhost local:root
+    sudo docker run \
+      -e SDL_VIDEODRIVER=offscreen \
+      -e DISPLAY=$DISPLAY \
+      -v /tmp/.X11-unix:/tmp/.X11-unix \
+      -p 2000-2002:2000-2002 \
+      -it \
+      --gpus all \
+      carlasim/carla:0.9.10.1 ./CarlaUE4.sh -opengl
+    ```
+
+#### Windows users
+1. Download the `0.9.10.1` version from the offical [carla releases](https://github.com/carla-simulator/carla/releases/tag/0.9.10.1).
+
+2. Start the carla exe located under `CARLA_0.9.10.1\WindowsNoEditor\CarlaUE4.exe`:
+     ```bash
+     ./CarlaUE4.exe -Carla-server -windowed
+     ```
+
+### Start the ROS bridge
+Within COROS everything is allready setup to communicate with carla.
+
+Open a new terminal and start the ros bridge example:
+```bash
+roslaunch carla_ros_bridge carla_ros_bridge_with_example_ego_vehicle.launch
+```
+___
 
 ## 🔧 Configuration
 The environment comes shipped with a `docker-compose.yaml` to start the service and manage some parameters:
@@ -77,17 +151,8 @@ coros makes use of three open ports:
 
  **Important:** for each instance of coros these ports have to be assigned to available host-ports!
 
-
+____
 ## 😱 Known issues
-
-### VNC not working
-If the noVNC server is not accessable through the web interface, the virtual network has to be reseted:
-```
-docker-compose stop
-docker container prune -f
-docker network prune -f
-```
-After that you can start the service again.
 
 ### Mounting errors on windows
  1. start docker with admin rights
@@ -105,3 +170,6 @@ That's a very common ROS network issue:
  1. make sure you can ping the remote machine
  2. add all remote host names and your own host name to `\etc\hosts` on all machines
  3. restart the ROS master
+
+### Timeout from Carla ROS bridge
+Depending on your specific setup, make sure you enter the correct IPs within the Carla launch files. These can be found at: `/carla_rb_ws/src/carla_ros_bridge/launch/`. Also there is a configuration file at `/carla_rb_ws/src/carla_ros_bridge/config/settings.yaml`.
