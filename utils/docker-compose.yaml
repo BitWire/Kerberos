@@ -1,10 +1,10 @@
 version: '3.7'
 services:
-    coros:
-        container_name: coros
+    kerberos:
+        container_name: kerberos
         ports:
-            - '80:8080'
-            #- '5900:5900'
+            - '8080:8080'
+            - '5900:5900'
             - '6080:6080'
         volumes:
             - type: bind
@@ -18,6 +18,23 @@ services:
               volume:
                 nocopy: true
         image: johannhaselberger/coros
-
+    carla:
+        container_name: carla_sim
+        image: carlasim/carla:0.9.10
+        command: ./CarlaUE4.sh -opengl
+        ports:
+            - '2000:2000'
+            - '2001:2001'
+            - '2002:2002'
+        environment:
+            - SDL_VIDEODRIVER=x11
+            - DISPLAY=$DISPLAY
+        volume:
+            - '/tmp/.X11-unix:/tmp/.X11-unix'
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - capabilities: [gpu, utility]
 volumes:
     workspace:
